@@ -11,7 +11,7 @@ Kelp Restoration Urchin Demographics (KRUD) is a python project for analyzing an
    ```bash
    streamlit run app.py
    ```
-      2.5 Running on Sams Machine
+3. Running on Sams Machine
    ```bash
    python3 -m streamlit run app.py --server.headless true
 ```
