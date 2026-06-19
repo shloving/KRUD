@@ -73,6 +73,21 @@ def load_dataset(path: Path) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce")
 
+    # Split comma-separated diver IDs into separate rows so each diver is analyzed independently.
+    if "Diver ID" in df.columns:
+        df["Diver ID"] = df["Diver ID"].astype(str)
+        split_rows = []
+        for _, row in df.iterrows():
+            raw_ids = row["Diver ID"]
+            if pd.isna(raw_ids) or str(raw_ids).strip() in {"nan", "None", ""}:
+                split_rows.append(row.to_dict())
+                continue
+            for diver_id in [x.strip() for x in str(raw_ids).split(",") if x.strip()]:
+                new_row = row.to_dict()
+                new_row["Diver ID"] = diver_id
+                split_rows.append(new_row)
+        df = pd.DataFrame(split_rows)
+
     # Keep a clean display for categorical fields
     for col in df.columns:
         if df[col].dtype == object:
