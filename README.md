@@ -17,5 +17,4 @@ Kelp Restoration Urchin Demographics (KRUD) is a python project for analyzing an
 
 - Explore response variables such as `Total_Bin_Weight`, `wet_weight`, `diameter`, `height`, and `gonad_weight`
 - Compare trends over time for different explanatory variables such as `Diver ID` and `Vessel ID`
-- Automatically handle comma-separated diver IDs by splitting them into separate records for analysis
 
