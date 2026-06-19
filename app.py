@@ -247,7 +247,7 @@ def main():
         title=f"{response_var} over time by {explanatory_var}",
     )
     fig_line.update_layout(template="plotly_white")
-    st.plotly_chart(fig_line, use_container_width=True)
+    st.plotly_chart(fig_line, width="stretch")
 
     fig_box = px.box(
         plot_df,
@@ -258,10 +258,10 @@ def main():
         title=f"Distribution of {response_var} by {explanatory_var}",
     )
     fig_box.update_layout(template="plotly_white")
-    st.plotly_chart(fig_box, use_container_width=True)
+    st.plotly_chart(fig_box, width="stretch")
 
     st.subheader("Filtered data preview")
-    st.dataframe(plot_df.head(200), use_container_width=True)
+    st.dataframe(plot_df.head(200), width="stretch")
 
 
 if __name__ == "__main__":
