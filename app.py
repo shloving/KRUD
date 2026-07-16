@@ -27,7 +27,12 @@ def safe_columns(cols):
     return [c for c in cols if c is not None and str(c) not in {"nan", "None", "<NA>"}]
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(
+    show_spinner=False,
+    hash_funcs={
+        Path: lambda path: (path.stat().st_mtime, path.stat().st_size, str(path))
+    },
+)
 def load_dataset(path: Path) -> pd.DataFrame:
     header = detect_header(path)
     df = pd.read_csv(path, header=header, dtype=str, skip_blank_lines=True)
