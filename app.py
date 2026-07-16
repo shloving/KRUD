@@ -73,6 +73,10 @@ def load_dataset(path: Path) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce")
 
+    # Calculate gonadosomatic index when total body and gonad weights are available.
+    if "gonad_weight" in df.columns and "wet_weight" in df.columns:
+        df["GSI"] = (df["gonad_weight"] / df["wet_weight"]) * 100
+
     # Split comma-separated diver IDs into separate rows so each diver is analyzed independently.
     if "Diver ID" in df.columns:
         df["Diver ID"] = df["Diver ID"].astype(str)
@@ -132,6 +136,7 @@ def main():
                 "diameter",
                 "height",
                 "gonad_weight",
+                "GSI",
             ]
             if c in df.columns
         ]
@@ -145,36 +150,44 @@ def main():
         options=response_options,
     )
 
-    candidate_explanatories = safe_columns(
-        [
-            c
-            for c in [
-                "Diver ID",
-                "Vessel ID",
-                "Site_County",
-                "Species",
-                "Catch_Type",
-                "restoration",
-                "Data_Flag",
+    use_explanatory = st.sidebar.checkbox("Use explanatory variable", True)
+    explanatory_var = None
+
+    candidate_explanatories = []
+    if use_explanatory:
+        candidate_explanatories = safe_columns(
+            [
+                c
+                for c in [
+                    "Diver ID",
+                    "Vessel ID",
+                    "Site_County",
+                    "Species",
+                    "Catch_Type",
+                    "restoration",
+                    "Data_Flag",
+                ]
+                if c in df.columns
             ]
-            if c in df.columns
-        ]
-    )
-    if not candidate_explanatories:
-        candidate_explanatories = [c for c in categorical_cols if c != response_var]
+        )
+        if not candidate_explanatories:
+            candidate_explanatories = [c for c in categorical_cols if c != response_var]
 
-    if "Diver ID" in candidate_explanatories:
-        default_expl = "Diver ID"
-    elif "Vessel ID" in candidate_explanatories:
-        default_expl = "Vessel ID"
-    else:
-        default_expl = candidate_explanatories[0]
+        if candidate_explanatories:
+            if "Diver ID" in candidate_explanatories:
+                default_expl = "Diver ID"
+            elif "Vessel ID" in candidate_explanatories:
+                default_expl = "Vessel ID"
+            else:
+                default_expl = candidate_explanatories[0]
 
-    explanatory_var = st.sidebar.selectbox(
-        "Explanatory variable",
-        options=candidate_explanatories,
-        index=(candidate_explanatories.index(default_expl) if default_expl in candidate_explanatories else 0),
-    )
+            explanatory_var = st.sidebar.selectbox(
+                "Explanatory variable",
+                options=candidate_explanatories,
+                index=(candidate_explanatories.index(default_expl) if default_expl in candidate_explanatories else 0),
+            )
+        else:
+            explanatory_var = None
 
     time_options = safe_columns(
         [
@@ -197,9 +210,9 @@ def main():
         st.error(f"Selected response variable '{response_var}' is not available in the dataset.")
         return
 
-    if explanatory_var not in df.columns:
-        st.error(f"Selected explanatory variable '{explanatory_var}' is not available in the dataset.")
-        return
+    if use_explanatory and explanatory_var is None:
+        st.warning("No explanatory variable is available; continuing without grouping.")
+        use_explanatory = False
 
     if time_col is None or time_col not in df.columns or df[time_col].isna().all():
         st.warning(
@@ -208,8 +221,13 @@ def main():
         df = df.reset_index().rename(columns={"index": "row_index"})
         time_col = "row_index"
 
-    plot_df = df[[time_col, explanatory_var, response_var]].copy()
-    plot_df = plot_df.dropna(subset=[time_col, explanatory_var, response_var])
+    if use_explanatory:
+        plot_df = df[[time_col, explanatory_var, response_var]].copy()
+        plot_df = plot_df.dropna(subset=[time_col, explanatory_var, response_var])
+    else:
+        plot_df = df[[time_col, response_var]].copy()
+        plot_df = plot_df.dropna(subset=[time_col, response_var])
+
     plot_df[time_col] = pd.to_datetime(plot_df[time_col], errors="coerce")
     plot_df = plot_df.dropna(subset=[time_col])
 
@@ -224,41 +242,63 @@ def main():
     else:
         plot_df["time_bin"] = plot_df[time_col]
 
-    summary = (
-        plot_df.groupby(["time_bin", explanatory_var], dropna=False)[response_var]
-        .agg(agg_method)
-        .reset_index()
-    )
+    if use_explanatory:
+        summary = (
+            plot_df.groupby(["time_bin", explanatory_var], dropna=False)[response_var]
+            .agg(agg_method)
+            .reset_index()
+        )
+    else:
+        summary = (
+            plot_df.groupby(["time_bin"], dropna=False)[response_var]
+            .agg(agg_method)
+            .reset_index()
+        )
+
+    if use_explanatory:
+        unique_groups_label = f"Unique {explanatory_var} groups"
+        unique_groups_value = f"{summary[explanatory_var].nunique():,}"
+    else:
+        unique_groups_label = "Unique time bins"
+        unique_groups_value = f"{summary['time_bin'].nunique():,}"
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Rows analyzed", f"{len(df):,}")
-    col2.metric("Unique groups", f"{summary[explanatory_var].nunique():,}")
+    col2.metric(unique_groups_label, unique_groups_value)
     col3.metric(
         "Mean response",
         f"{summary[response_var].mean():.3f}" if agg_method == "mean" else f"{summary[response_var].mean():.3f}",
     )
 
+    if use_explanatory:
+        line_title = f"{response_var} over time by {explanatory_var}"
+        line_color = explanatory_var
+    else:
+        line_title = f"{response_var} over time"
+        line_color = None
+
     fig_line = px.line(
         summary,
         x="time_bin",
         y=response_var,
-        color=explanatory_var,
+        color=line_color,
         markers=True,
-        title=f"{response_var} over time by {explanatory_var}",
+        title=line_title,
     )
     fig_line.update_layout(template="plotly_white")
     st.plotly_chart(fig_line, width="stretch")
 
-    fig_box = px.box(
-        plot_df,
-        x=explanatory_var,
-        y=response_var,
-        color=explanatory_var,
-        points="outliers",
-        title=f"Distribution of {response_var} by {explanatory_var}",
-    )
-    fig_box.update_layout(template="plotly_white")
-    st.plotly_chart(fig_box, width="stretch")
+    if use_explanatory:
+        fig_box = px.box(
+            plot_df,
+            x=explanatory_var,
+            y=response_var,
+            color=explanatory_var,
+            points="outliers",
+            title=f"Distribution of {response_var} by {explanatory_var}",
+        )
+        fig_box.update_layout(template="plotly_white")
+        st.plotly_chart(fig_box, width="stretch")
 
     st.subheader("Filtered data preview")
     st.dataframe(plot_df.head(200), width="stretch")
