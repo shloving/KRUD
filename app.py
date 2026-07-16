@@ -219,6 +219,8 @@ def main():
         st.warning("No explanatory variable is available; continuing without grouping.")
         use_explanatory = False
 
+    boat_col = "Vessel ID" if "Vessel ID" in df.columns else None
+
     if time_col is None or time_col not in df.columns or df[time_col].isna().all():
         st.warning(
             "No usable time column was found. Falling back to row order for plotting."
@@ -227,10 +229,16 @@ def main():
         time_col = "row_index"
 
     if use_explanatory:
-        plot_df = df[[time_col, explanatory_var, response_var]].copy()
+        plot_cols = [time_col, explanatory_var, response_var]
+        if boat_col is not None and boat_col != explanatory_var:
+            plot_cols.append(boat_col)
+        plot_df = df[plot_cols].copy()
         plot_df = plot_df.dropna(subset=[time_col, explanatory_var, response_var])
     else:
-        plot_df = df[[time_col, response_var]].copy()
+        plot_cols = [time_col, response_var]
+        if boat_col is not None:
+            plot_cols.append(boat_col)
+        plot_df = df[plot_cols].copy()
         plot_df = plot_df.dropna(subset=[time_col, response_var])
 
     plot_df[time_col] = pd.to_datetime(plot_df[time_col], errors="coerce")
@@ -247,22 +255,26 @@ def main():
     else:
         plot_df["time_bin"] = plot_df[time_col]
 
+    group_cols = ["time_bin"]
     if use_explanatory:
-        summary = (
-            plot_df.groupby(["time_bin", explanatory_var], dropna=False)[response_var]
-            .agg(agg_method)
-            .reset_index()
-        )
-    else:
-        summary = (
-            plot_df.groupby(["time_bin"], dropna=False)[response_var]
-            .agg(agg_method)
-            .reset_index()
-        )
+        group_cols.append(explanatory_var)
+        if boat_col is not None and boat_col != explanatory_var:
+            group_cols.append(boat_col)
+    elif boat_col is not None:
+        group_cols.append(boat_col)
+
+    summary = (
+        plot_df.groupby(group_cols, dropna=False)[response_var]
+        .agg(agg_method)
+        .reset_index()
+    )
 
     if use_explanatory:
         unique_groups_label = f"Unique {explanatory_var} groups"
         unique_groups_value = f"{summary[explanatory_var].nunique():,}"
+    elif boat_col is not None:
+        unique_groups_label = f"Unique {boat_col} groups"
+        unique_groups_value = f"{summary[boat_col].nunique():,}"
     else:
         unique_groups_label = "Unique time bins"
         unique_groups_value = f"{summary['time_bin'].nunique():,}"
@@ -278,15 +290,22 @@ def main():
     if use_explanatory:
         line_title = f"{response_var} over time by {explanatory_var}"
         line_color = explanatory_var
+        line_group = boat_col if boat_col is not None and boat_col != explanatory_var else None
+    elif boat_col is not None:
+        line_title = f"{response_var} over time by {boat_col}"
+        line_color = boat_col
+        line_group = boat_col
     else:
         line_title = f"{response_var} over time"
         line_color = None
+        line_group = None
 
     fig_line = px.line(
         summary,
         x="time_bin",
         y=response_var,
         color=line_color,
+        line_group=line_group,
         markers=True,
         title=line_title,
     )
