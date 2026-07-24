@@ -236,8 +236,6 @@ def main():
         plot_df = plot_df.dropna(subset=[time_col, explanatory_var, response_var])
     else:
         plot_cols = [time_col, response_var]
-        if boat_col is not None:
-            plot_cols.append(boat_col)
         plot_df = df[plot_cols].copy()
         plot_df = plot_df.dropna(subset=[time_col, response_var])
 
@@ -260,8 +258,6 @@ def main():
         group_cols.append(explanatory_var)
         if boat_col is not None and boat_col != explanatory_var:
             group_cols.append(boat_col)
-    elif boat_col is not None:
-        group_cols.append(boat_col)
 
     summary = (
         plot_df.groupby(group_cols, dropna=False)[response_var]
@@ -272,9 +268,6 @@ def main():
     if use_explanatory:
         unique_groups_label = f"Unique {explanatory_var} groups"
         unique_groups_value = f"{summary[explanatory_var].nunique():,}"
-    elif boat_col is not None:
-        unique_groups_label = f"Unique {boat_col} groups"
-        unique_groups_value = f"{summary[boat_col].nunique():,}"
     else:
         unique_groups_label = "Unique time bins"
         unique_groups_value = f"{summary['time_bin'].nunique():,}"
@@ -289,26 +282,22 @@ def main():
 
     if use_explanatory:
         line_title = f"{response_var} over time by {explanatory_var}"
-        line_color = explanatory_var
-        line_group = boat_col if boat_col is not None and boat_col != explanatory_var else None
-    elif boat_col is not None:
-        line_title = f"{response_var} over time by {boat_col}"
-        line_color = boat_col
-        line_group = boat_col
+        fig_line = px.line(
+            summary,
+            x="time_bin",
+            y=response_var,
+            color=explanatory_var,
+            markers=True,
+            title=line_title,
+        )
     else:
         line_title = f"{response_var} over time"
-        line_color = None
-        line_group = None
-
-    fig_line = px.line(
-        summary,
-        x="time_bin",
-        y=response_var,
-        color=line_color,
-        line_group=line_group,
-        markers=True,
-        title=line_title,
-    )
+        fig_line = px.scatter(
+            summary,
+            x="time_bin",
+            y=response_var,
+            title=line_title,
+        )
     fig_line.update_layout(template="plotly_white")
     st.plotly_chart(fig_line, width="stretch")
 
