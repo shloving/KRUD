@@ -218,8 +218,10 @@ def main():
             [c for c in df.columns if c.lower().endswith("date") or "date" in c.lower()]
         )
 
-    if time_options:
-        time_col = st.sidebar.selectbox("Time axis", options=time_options)
+    if "DateTime_Landed" in df.columns:
+        time_col = "DateTime_Landed"
+    elif time_options:
+        time_col = time_options[0]
     else:
         time_col = None
 
@@ -321,7 +323,7 @@ def main():
             x=explanatory_var,
             y=response_var,
             color=explanatory_var,
-            points="outliers",
+            points=False,
             title=f"Distribution of {response_var} by {explanatory_var}",
         )
         fig_box.update_layout(template="plotly_white")
@@ -338,7 +340,7 @@ def main():
                 x="year",
                 y=response_var,
                 color="year",
-                points="outliers",
+                points=False,
                 title=f"Distribution of {response_var} by year",
             )
             fig_year_box.update_layout(template="plotly_white")
