@@ -27,6 +27,17 @@ def safe_columns(cols):
     return [c for c in cols if c is not None and str(c) not in {"nan", "None", "<NA>"}]
 
 
+def normalize_catch_type(series: pd.Series) -> pd.Series:
+    """Map catch-type variants to Leftovers or Target without dropping rows."""
+    cleaned = series.astype("string").fillna("").str.strip().str.lower()
+    normalized = pd.Series(
+        np.where(cleaned.str.contains("leftover", regex=False), "Leftovers", "Target"),
+        index=series.index,
+        dtype="string",
+    )
+    return normalized
+
+
 @st.cache_data(
     show_spinner=False,
     hash_funcs={
@@ -96,6 +107,9 @@ def load_dataset(path: Path) -> pd.DataFrame:
                 new_row["Diver ID"] = diver_id
                 split_rows.append(new_row)
         df = pd.DataFrame(split_rows)
+
+    if "Catch_Type" in df.columns:
+        df["Catch_Type"] = normalize_catch_type(df["Catch_Type"])
 
     # Keep a clean display for categorical fields
     for col in df.columns:
@@ -312,6 +326,27 @@ def main():
         )
         fig_box.update_layout(template="plotly_white")
         st.plotly_chart(fig_box, width="stretch")
+
+    if pd.api.types.is_datetime64_any_dtype(plot_df[time_col]):
+        year_df = plot_df.copy()
+        year_df["year"] = year_df[time_col].dt.year.astype(int)
+        year_df = year_df.dropna(subset=[response_var, "year"])
+
+        if year_df["year"].nunique() >= 2:
+            fig_year_box = px.box(
+                year_df,
+                x="year",
+                y=response_var,
+                color="year",
+                points="outliers",
+                title=f"Distribution of {response_var} by year",
+            )
+            fig_year_box.update_layout(template="plotly_white")
+            st.plotly_chart(fig_year_box, width="stretch")
+        else:
+            st.info("Not enough year information is available to compare values across years.")
+    else:
+        st.info("A datetime column is required to compare values across years.")
 
     st.subheader("Filtered data preview")
     st.dataframe(plot_df.head(200), width="stretch")
