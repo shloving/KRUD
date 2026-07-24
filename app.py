@@ -169,6 +169,24 @@ def main():
         options=response_options,
     )
 
+    st.sidebar.subheader("Catch type filter")
+    if "Catch_Type" in df.columns:
+        show_target = st.sidebar.checkbox("Target", value=True)
+        show_leftovers = st.sidebar.checkbox("Leftovers", value=True)
+        allowed_catch_types = []
+        if show_target:
+            allowed_catch_types.append("Target")
+        if show_leftovers:
+            allowed_catch_types.append("Leftovers")
+
+        if allowed_catch_types:
+            df = df[df["Catch_Type"].isin(allowed_catch_types)]
+        else:
+            st.warning("No catch types are selected. Showing no data.")
+            df = df.iloc[0:0]
+    else:
+        show_target = show_leftovers = True
+
     use_explanatory = st.sidebar.checkbox("Use explanatory variable", True)
     explanatory_var = None
 
@@ -182,7 +200,6 @@ def main():
                     "Vessel ID",
                     "Site_County",
                     "Species",
-                    "Catch_Type",
                     "restoration",
                     "Data_Flag",
                 ]
