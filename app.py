@@ -296,6 +296,14 @@ def main():
         f"{summary[response_var].mean():.3f}" if agg_method == "mean" else f"{summary[response_var].mean():.3f}",
     )
 
+    response_values = plot_df[response_var].dropna()
+    use_log_scale = (
+        pd.api.types.is_numeric_dtype(response_values)
+        and response_values.gt(0).all()
+        and response_values.nunique() > 1
+        and abs(response_values.skew()) > 1.0
+    )
+
     if use_explanatory:
         line_title = f"{response_var} over time by {explanatory_var}"
         fig_line = px.line(
@@ -315,6 +323,8 @@ def main():
             title=line_title,
         )
     fig_line.update_layout(template="plotly_white")
+    if use_log_scale:
+        fig_line.update_yaxes(type="log")
     st.plotly_chart(fig_line, width="stretch")
 
     if use_explanatory:
@@ -327,6 +337,8 @@ def main():
             title=f"Distribution of {response_var} by {explanatory_var}",
         )
         fig_box.update_layout(template="plotly_white")
+        if use_log_scale:
+            fig_box.update_yaxes(type="log")
         st.plotly_chart(fig_box, width="stretch")
 
     if pd.api.types.is_datetime64_any_dtype(plot_df[time_col]):
@@ -344,6 +356,8 @@ def main():
                 title=f"Distribution of {response_var} by year",
             )
             fig_year_box.update_layout(template="plotly_white")
+            if use_log_scale:
+                fig_year_box.update_yaxes(type="log")
             st.plotly_chart(fig_year_box, width="stretch")
         else:
             st.info("Not enough year information is available to compare values across years.")
