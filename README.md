@@ -3,15 +3,19 @@ Kelp Restoration Urchin Demographics (KRUD) is a python project for analyzing an
 
 ## Running the dashboard
 
-1. Install the required Python packages:
+1. Activate the project virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
+2.  Install the required Python packages:
    ```bash
    pip install -r requirements.txt
    ```
-2. Start the dashboard:
+3. Start the dashboard:
    ```bash
    streamlit run app.py
    ```
-3. Open the local URL shown by Streamlit in your browser (usually http://localhost:8501).
+4. Open the local URL shown by Streamlit in your browser (usually http://localhost:8501).
 
 ## Dashboard features
 
