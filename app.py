@@ -111,6 +111,10 @@ def load_dataset(path: Path) -> pd.DataFrame:
     if "Catch_Type" in df.columns:
         df["Catch_Type"] = normalize_catch_type(df["Catch_Type"])
 
+    if "Data_Flag" in df.columns:
+        df["Data_Flag"] = pd.to_numeric(df["Data_Flag"], errors="coerce")
+        df = df[(df["Data_Flag"].isna()) | (df["Data_Flag"].isin([0, "0", "N/A", "NA", "n/a", "na", ""]))]
+
     # Keep a clean display for categorical fields
     for col in df.columns:
         if df[col].dtype == object:
