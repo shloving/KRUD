@@ -7,7 +7,7 @@ Kelp Restoration Urchin Demographics (KRUD) is a Python project for analyzing an
 1. Creating the virtual environment:
 
    ```bash
-   python3 -m venv . venv
+   python3 -m venv .venv
    ```
 
 2. Activate the project virtual environment:
