@@ -371,6 +371,76 @@ def main():
     else:
         st.info("A datetime column is required to compare values across years.")
 
+    st.subheader("Block-level trends")
+    st.caption("Choose a site and block to explore how the selected variable changes over time.")
+
+    if "Portuguese" in df.columns and "Block_Number" in df.columns:
+        block_df = df.copy()
+        site_options = ["Noyo", "Big River"]
+        selected_site = st.selectbox("Site", options=site_options, key="block_site_selection")
+
+        site_lookup = {
+            "Noyo": {"noyo", "noyo harbor", "noyo-harbor"},
+            "Big River": {"big river", "big-river"},
+        }
+        portuguese_values = block_df["Portuguese"].astype(str).str.strip().str.lower()
+        block_df = block_df[portuguese_values.isin(site_lookup[selected_site])].copy()
+        block_df["Block_Number"] = pd.to_numeric(block_df["Block_Number"], errors="coerce")
+        block_df = block_df.dropna(subset=["Block_Number"])
+
+        if not block_df.empty:
+            block_numbers = sorted(
+                block_df["Block_Number"].dropna().astype(int).unique().tolist()
+            )
+            if block_numbers:
+                selected_block = st.selectbox(
+                    "Select block",
+                    options=block_numbers,
+                    key="block_selection",
+                )
+                block_response_var = st.selectbox(
+                    "Block response variable",
+                    options=response_options,
+                    index=(response_options.index(response_var) if response_var in response_options else 0),
+                    key="block_response_var",
+                )
+
+                block_plot_df = block_df[block_df["Block_Number"] == int(selected_block)].copy()
+                block_plot_df = block_plot_df[[time_col, block_response_var]].copy()
+                block_plot_df = block_plot_df.dropna(subset=[time_col, block_response_var])
+                block_plot_df[time_col] = pd.to_datetime(block_plot_df[time_col], errors="coerce")
+                block_plot_df = block_plot_df.dropna(subset=[time_col]).sort_values(by=time_col)
+
+                if not block_plot_df.empty:
+                    if pd.api.types.is_datetime64_any_dtype(block_plot_df[time_col]):
+                        block_plot_df["time_bin"] = block_plot_df[time_col].dt.floor("D")
+                    else:
+                        block_plot_df["time_bin"] = block_plot_df[time_col]
+
+                    block_summary = (
+                        block_plot_df.groupby("time_bin", dropna=False)[block_response_var]
+                        .agg(agg_method)
+                        .reset_index()
+                    )
+
+                    fig_block = px.line(
+                        block_summary,
+                        x="time_bin",
+                        y=block_response_var,
+                        markers=True,
+                        title=f"{block_response_var} over time for {selected_site} block {selected_block}",
+                    )
+                    fig_block.update_layout(template="plotly_white")
+                    st.plotly_chart(fig_block, width="stretch")
+                else:
+                    st.info("No data is available for the selected block after filtering.")
+            else:
+                st.info("No usable block numbers are available for Noyo / Noyo Harbor records.")
+        else:
+            st.info("No Noyo / Noyo Harbor records are available after the current filters.")
+    else:
+        st.info("The Portuguese and Block_Number columns are required for this section.")
+
     st.subheader("Filtered data preview")
     st.dataframe(plot_df.head(200), width="stretch")
 
