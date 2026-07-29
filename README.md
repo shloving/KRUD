@@ -8,7 +8,6 @@ Before running the app, make sure you have Python installed:
 
 - Python 3.9 or newer
 - A terminal or command prompt
-- Internet access to install the Python packages listed in the requirements file
 
 ## Running the Dashboard
 
@@ -113,9 +112,3 @@ Open a terminal in the project root folder (the folder that contains this README
 ### If you are running from a fresh clone
 
 If this is the first time you are opening the project, you may need to install Python first and then run the setup steps above from the project folder.
-
-## Dashboard Features
-
-- Explore response variables such as `Total_Bin_Weight`, `wet_weight`, `diameter`, `height`, and `gonad_weight`.
-- Compare trends over time for explanatory variables such as `Diver ID` and `Vessel ID`.
-
