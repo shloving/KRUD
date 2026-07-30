@@ -273,8 +273,13 @@ def main():
         plot_df = plot_df.dropna(subset=[time_col, explanatory_var, response_var])
     else:
         plot_cols = [time_col, response_var]
+        # If Vessel ID is available, include it so we can group/color by vessel
+        if boat_col is not None:
+            plot_cols.append(boat_col)
         plot_df = df[plot_cols].copy()
-        plot_df = plot_df.dropna(subset=[time_col, response_var])
+        # Drop rows missing the required fields; don't drop rows solely because vessel id is missing
+        required_subset = [time_col, response_var]
+        plot_df = plot_df.dropna(subset=required_subset)
 
     plot_df[time_col] = pd.to_datetime(plot_df[time_col], errors="coerce")
     plot_df = plot_df.dropna(subset=[time_col])
@@ -294,6 +299,11 @@ def main():
     if use_explanatory:
         group_cols.append(explanatory_var)
         if boat_col is not None and boat_col != explanatory_var:
+            group_cols.append(boat_col)
+    else:
+        # When no explanatory variable is selected, still split daily points by Vessel ID
+        # so a day with multiple vessels produces multiple points.
+        if boat_col is not None:
             group_cols.append(boat_col)
 
     summary = (
@@ -329,12 +339,22 @@ def main():
         )
     else:
         line_title = f"{response_var} over time"
-        fig_line = px.scatter(
-            summary,
-            x="time_bin",
-            y=response_var,
-            title=line_title,
-        )
+        # If Vessel ID is available and was included in the grouping, color points by vessel
+        if boat_col is not None and boat_col in summary.columns:
+            fig_line = px.scatter(
+                summary,
+                x="time_bin",
+                y=response_var,
+                color=boat_col,
+                title=line_title,
+            )
+        else:
+            fig_line = px.scatter(
+                summary,
+                x="time_bin",
+                y=response_var,
+                title=line_title,
+            )
     fig_line.update_layout(template="plotly_white")
     st.plotly_chart(fig_line, width="stretch")
 
