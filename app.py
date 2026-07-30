@@ -132,7 +132,19 @@ def main():
         st.error("No CSV files were found in the DATA folder.")
         return
 
-    selected_file = st.sidebar.selectbox("Dataset", csv_files, format_func=lambda p: p.name)
+    # Default to the most recently modified file (most recently uploaded)
+    try:
+        latest_file = max(csv_files, key=lambda p: p.stat().st_mtime)
+        default_index = csv_files.index(latest_file)
+    except Exception:
+        default_index = 0
+
+    selected_file = st.sidebar.selectbox(
+        "Dataset",
+        csv_files,
+        format_func=lambda p: p.name,
+        index=default_index,
+    )
     df = load_dataset(selected_file)
 
     # Column selection helpers
@@ -176,7 +188,7 @@ def main():
     st.sidebar.subheader("Catch type filter")
     if "Catch_Type" in df.columns:
         show_target = st.sidebar.checkbox("Target", value=True)
-        show_leftovers = st.sidebar.checkbox("Leftovers", value=True)
+        show_leftovers = st.sidebar.checkbox("Leftovers", value=False)
         allowed_catch_types = []
         if show_target:
             allowed_catch_types.append("Target")
@@ -191,7 +203,7 @@ def main():
     else:
         show_target = show_leftovers = True
 
-    use_explanatory = st.sidebar.checkbox("Use explanatory variable", True)
+    use_explanatory = st.sidebar.checkbox("Use explanatory variable", False)
     explanatory_var = None
 
     candidate_explanatories = []
