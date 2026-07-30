@@ -438,7 +438,12 @@ def main():
                 )
 
                 block_plot_df = block_df[block_df["Block_Number"] == int(selected_block)].copy()
-                block_plot_df = block_plot_df[[time_col, block_response_var]].copy()
+                # Include Vessel ID so we can create separate points per vessel per day
+                cols = [time_col, block_response_var]
+                if boat_col is not None:
+                    cols.append(boat_col)
+                block_plot_df = block_plot_df[cols].copy()
+                # Drop rows missing the required time/response fields
                 block_plot_df = block_plot_df.dropna(subset=[time_col, block_response_var])
                 block_plot_df[time_col] = pd.to_datetime(block_plot_df[time_col], errors="coerce")
                 block_plot_df = block_plot_df.dropna(subset=[time_col]).sort_values(by=time_col)
@@ -449,19 +454,31 @@ def main():
                     else:
                         block_plot_df["time_bin"] = block_plot_df[time_col]
 
-                    block_summary = (
-                        block_plot_df.groupby("time_bin", dropna=False)[block_response_var]
-                        .agg(agg_method)
-                        .reset_index()
-                    )
+                    # Group by day and vessel (if available) so multiple vessels produce multiple points
+                    if boat_col is not None and boat_col in block_plot_df.columns:
+                        group_cols = ["time_bin", boat_col]
+                        block_summary = (
+                            block_plot_df.groupby(group_cols, dropna=False)[block_response_var]
+                            .agg(agg_method)
+                            .reset_index()
+                        )
+                    else:
+                        block_summary = (
+                            block_plot_df.groupby("time_bin", dropna=False)[block_response_var]
+                            .agg(agg_method)
+                            .reset_index()
+                        )
 
-                    fig_block = px.line(
+                    # Plot points (not colored by vessel). Include vessel in hover data and hide legend.
+                    fig_block = px.scatter(
                         block_summary,
                         x="time_bin",
                         y=block_response_var,
-                        markers=True,
+                        hover_data=[boat_col] if (boat_col is not None and boat_col in block_summary.columns) else None,
                         title=f"{block_response_var} over time for {selected_site} block {selected_block}",
                     )
+                    fig_block.update_traces(marker=dict(size=8, color="#1f77b4"))
+                    fig_block.update_layout(showlegend=False)
                     fig_block.update_layout(template="plotly_white")
                     st.plotly_chart(fig_block, width="stretch")
                 else:
